@@ -1,4 +1,6 @@
 
+
+# Updated: 2026-02-04 22:47 - Using new NLP with person name filtering
 from dotenv import load_dotenv
 import os
 from pathlib import Path
