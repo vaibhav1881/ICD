@@ -35,31 +35,28 @@ class LLMService:
     
     def generate_collision(self, concept_pair: List[str]) -> Dict[str, Any]:
         """
-        Generates a creative collision between two concepts using AI.
+        Generates a creative collision between multiple concepts using AI.
         """
         # Validate we have actual concepts
         if not concept_pair or len(concept_pair) < 2:
             raise ValueError("Need at least 2 concepts to generate a collision")
         
-        concept1 = concept_pair[0]
-        concept2 = concept_pair[1]
-        
-        print(f"🔄 Generating collision for: '{concept1}' x '{concept2}'")
+        print(f"🔄 Generating collision for: {concept_pair}")
         
         # Try Gemini first if available
         if self.use_gemini:
-            return self._generate_with_gemini(concept1, concept2)
+            return self._generate_with_gemini(concept_pair)
         
         # Try OpenAI if available
         elif self.use_gemini == False:
-            return self._generate_with_openai(concept1, concept2)
+            return self._generate_with_openai(concept_pair)
         
         # Fall back to mock
         else:
             print("⚠️  No API key found, using mock collision")
-            return self._generate_mock_collision(concept1, concept2)
+            return self._generate_mock_collision(concept_pair[0], concept_pair[1])
     
-    def _generate_with_gemini(self, concept1: str, concept2: str) -> Dict[str, Any]:
+    def _generate_with_gemini(self, concepts: List[str]) -> Dict[str, Any]:
         """Generate collision using Google Gemini API (stable google-generativeai)"""
         try:
             import google.generativeai as genai
@@ -72,21 +69,22 @@ class LLMService:
             model_name = 'gemini-flash-latest'
             model = genai.GenerativeModel(model_name)
             
-            prompt = f"""Generate a creative "idea collision" between these two concepts:
+            concepts_str = "\n".join([f"Concept {i+1}: \"{c}\"" for i, c in enumerate(concepts)])
+            
+            prompt = f"""Generate a creative "idea collision" between these concepts:
 
-Concept 1: "{concept1}"
-Concept 2: "{concept2}"
+{concepts_str}
 
-Find a surprising connection, insight, or application that combines them.
+Find a surprising connection, insight, or application that combines all of them.
 
 Return ONLY a valid JSON object with this exact structure (no markdown, no code blocks):
 {{
     "insight": "A detailed explanation of the creative connection between these concepts (2-3 sentences)",
-    "application": "A concrete real-world application that leverages both concepts (2-3 sentences)",
-    "domain_intersection": "Domain of Concept 1 x Domain of Concept 2"
+    "application": "A concrete real-world application that leverages all concepts (2-3 sentences)",
+    "domain_intersection": "Specify the intersection of domains"
 }}
 
-Be specific and reference actual properties of both concepts."""
+Be specific and reference actual properties of the concepts."""
             
             print(f"📡 Calling Gemini API ({model_name})...")
             
@@ -136,42 +134,43 @@ Be specific and reference actual properties of both concepts."""
             print(f"✅ Gemini collision generated successfully")
             
             return {
-                "concept_1": concept1,
-                "concept_2": concept2,
+                "concept_1": concepts[0],
+                "concept_2": " x ".join(concepts[1:]),
                 "insight": content.get("insight", "No insight generated."),
                 "application": content.get("application", "No application generated."),
-                "domain_intersection": content.get("domain_intersection", f"{concept1} x {concept2}")
+                "domain_intersection": content.get("domain_intersection", f"{concepts[0]} x {concepts[1]}")
             }
             
         except Exception as e:
             error_msg = str(e)
             print(f"❌ Gemini API Error: {error_msg}")
             
-            # Fall back to mock collision
+            # Fall back to mock collision if everything fails
             print(f"🔄 Falling back to mock collision")
-            return self._generate_mock_collision(concept1, concept2)
-    
-    def _generate_with_openai(self, concept1: str, concept2: str) -> Dict[str, Any]:
+            return self._generate_mock_collision(concepts[0], concepts[1])
+
+    def _generate_with_openai(self, concepts: List[str]) -> Dict[str, Any]:
         """Generate collision using OpenAI API"""
         try:
             from openai import OpenAI
             client = OpenAI(api_key=self.openai_api_key)
             
-            prompt = f"""Generate a creative "idea collision" between these two concepts:
+            concepts_str = "\n".join([f"Concept {i+1}: \"{c}\"" for i, c in enumerate(concepts)])
+            
+            prompt = f"""Generate a creative "idea collision" between these concepts:
 
-Concept 1: "{concept1}"
-Concept 2: "{concept2}"
+{concepts_str}
 
-Find a surprising connection, insight, or application that combines them.
+Find a surprising connection, insight, or application that combines all of them.
 
 Return ONLY a valid JSON object with this exact structure:
 {{
     "insight": "A detailed explanation of the creative connection between these concepts (2-3 sentences)",
-    "application": "A concrete real-world application that leverages both concepts (2-3 sentences)",
-    "domain_intersection": "Domain of Concept 1 x Domain of Concept 2"
+    "application": "A concrete real-world application that leverages all concepts (2-3 sentences)",
+    "domain_intersection": "Specify the intersection of domains"
 }}
 
-Be specific and reference actual properties of both concepts."""
+Be specific and reference actual properties of the concepts."""
             
             print(f"📡 Calling OpenAI API...")
             response = client.chat.completions.create(
@@ -186,11 +185,11 @@ Be specific and reference actual properties of both concepts."""
             print(f"✅ OpenAI collision generated successfully")
             
             return {
-                "concept_1": concept1,
-                "concept_2": concept2,
+                "concept_1": concepts[0],
+                "concept_2": " x ".join(concepts[1:]),
                 "insight": content.get("insight", "No insight generated."),
                 "application": content.get("application", "No application generated."),
-                "domain_intersection": content.get("domain_intersection", f"{concept1} x {concept2}")
+                "domain_intersection": content.get("domain_intersection", f"{concepts[0]} x {concepts[1]}")
             }
             
         except Exception as e:
@@ -199,7 +198,7 @@ Be specific and reference actual properties of both concepts."""
             
             # Fall back to mock collision
             print(f"🔄 Falling back to mock collision")
-            return self._generate_mock_collision(concept1, concept2)
+            return self._generate_mock_collision(concepts[0], concepts[1])
     
     def _generate_mock_collision(self, concept1: str, concept2: str) -> Dict[str, Any]:
         """Generate a dynamic mock collision based on the actual concepts"""
@@ -232,8 +231,71 @@ Be specific and reference actual properties of both concepts."""
             "application": random.choice(application_templates),
             "domain_intersection": f"{domain1} x {domain2}"
         }
-    
-    def _infer_domain(self, concept: str) -> str: 
+
+    def expand_collision(self, concept1: str, concept2: str, insight: str, application: str) -> Dict[str, Any]:
+        """Deep dive exploration of an existing collision."""
+        prompt = f"""You are a visionary product researcher. You previously created this brilliant idea collision:
+Concepts involved: {concept1} and {concept2}
+Core Insight: {insight}
+Proposed Application: {application}
+
+Create a highly detailed, professional research report for this idea. 
+Format your response as ONLY a valid JSON object matching exactly this structure:
+{{
+    "executive_summary": "A powerful 2-3 sentence overview of why this idea matters.",
+    "scientific_mechanism": "A detailed paragraph explaining the technical or scientific mechanism behind how this would actually work.",
+    "market_validity": "Analysis of the idea's validity, market potential, and target audience.",
+    "implementation_challenges": "The harsh real-world challenges, technical hurdles, and risks in implementing it.",
+    "societal_impact": "The ultimate societal and market impact if this succeeds.",
+    "confidence_score": 85,
+    "feasibility_score": 70,
+    "market_potential_score": 90
+}}
+(Provide realistic integer scores out of 100 for confidence, feasibility, and market potential based on the idea's actual validity)."""
+        import json
+        try:
+            if self.use_gemini:
+                import google.generativeai as genai
+                model = genai.GenerativeModel('gemini-flash-latest')
+                response = model.generate_content(prompt)
+                text = response.text.strip()
+                # Extract pure JSON
+                start = text.find('{')
+                end = text.rfind('}')
+                if start != -1 and end != -1:
+                    text = text[start:end+1]
+                parsed = json.loads(text)
+                # Ensure metrics are present
+                parsed.setdefault("confidence_score", 85)
+                parsed.setdefault("feasibility_score", 70)
+                parsed.setdefault("market_potential_score", 90)
+                return parsed
+            elif self.use_gemini == False:
+                from openai import OpenAI
+                client = OpenAI(api_key=self.openai_api_key)
+                response = client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[{"role": "user", "content": prompt}],
+                    response_format={"type": "json_object"},
+                    max_tokens=1000
+                )
+                text = response.choices[0].message.content.strip()
+                return json.loads(text)
+        except Exception as e:
+            print(f"❌ Error expanding collision: {e}")
+        
+        return {
+            "executive_summary": "An error occurred while generating the research report.",
+            "scientific_mechanism": "...",
+            "market_validity": "...",
+            "implementation_challenges": "...",
+            "societal_impact": "...",
+            "confidence_score": 0,
+            "feasibility_score": 0,
+            "market_potential_score": 0
+        }
+
+    def _infer_domain(self, concept: str) -> str:
         """Infer domain from concept name (simple keyword matching)"""
         concept_lower = concept.lower()
         

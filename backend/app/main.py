@@ -84,30 +84,74 @@ async def list_articles(skip: int = 0, limit: int = 10, db: Session = Depends(da
     articles = db.query(models.Article).order_by(models.Article.created_at.desc()).offset(skip).limit(limit).all()
     return articles
 
+@app.get("/articles/{article_id}/concepts")
+async def get_article_concepts(article_id: int, db: Session = Depends(database.get_db)):
+    from .services import graph
+    article = db.query(models.Article).filter(models.Article.id == article_id).first()
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+    concepts_dict = graph.graph_service.get_concepts_for_articles([article.url])
+    return {"concepts": concepts_dict.get(article.url, [])}
+
 @app.post("/collisions/generate", response_model=schemas.Collision)
-async def generate_collisions(db: Session = Depends(database.get_db)):
+async def generate_collisions(request: schemas.GenerateCollisionRequest = None, db: Session = Depends(database.get_db)):
     """
     Trigger generation of collisions from existing concepts.
-    For MVP, this picks two random concepts and collides them.
+    If request is empty, picks two random concepts.
+    If request has article_ids, picks one random concept per article.
+    If request has concept_names, uses those explicitly.
     """
     from .services import llm, graph
     import random
     
-    # 1. Fetch concepts from Graph
-    try:
-        concepts = graph.graph_service.get_random_concepts(limit=10)
-    except Exception as e:
-        print(f"Error fetching concepts from graph: {e}")
-        concepts = []
-
-    if len(concepts) < 2:
-        # Fallback if graph is empty or error
-        concepts = ["Neural Networks", "Urban Planning", "Mycelium", "Jazz Improvisation"]
+    selected_concepts = []
     
-    pair = random.sample(concepts, 2)
+    if request and request.concept_names and len(request.concept_names) >= 2:
+        selected_concepts = request.concept_names[:5] # limit to 5 concepts
+
+    elif request and request.article_ids:
+        # Fetch articles
+        articles = db.query(models.Article).filter(models.Article.id.in_(request.article_ids)).all()
+        urls = [a.url for a in articles]
+        
+        # Get concepts mapped by url
+        concepts_by_url = graph.graph_service.get_concepts_for_articles(urls)
+        
+        # Pick 1 concept from each article
+        for url, url_concepts in concepts_by_url.items():
+            if url_concepts:
+                selected_concepts.append(random.choice(url_concepts))
+        
+        # Ensure unique and at least 2
+        selected_concepts = list(set(selected_concepts))
+        if len(selected_concepts) < 2:
+            # Fill with random concepts from these articles to reach at least 2
+            pool = []
+            for concepts in concepts_by_url.values():
+                pool.extend(concepts)
+            pool = list(set(pool))
+            if len(pool) >= 2:
+                selected_concepts = random.sample(pool, min(len(pool), max(2, len(request.article_ids))))
+    
+    # 1. Fallback to random concepts from Graph if no request or insufficient concepts found
+    if len(selected_concepts) < 2:
+        try:
+            concepts = graph.graph_service.get_random_concepts(limit=10)
+            if len(concepts) >= 2:
+                selected_concepts = random.sample(concepts, 2)
+        except Exception as e:
+            print(f"Error fetching concepts from graph: {e}")
+            selected_concepts = []
+
+    if len(selected_concepts) < 2:
+        # Final Fallback if graph is empty or error
+        selected_concepts = ["Neural Networks", "Urban Planning"]
+    
+    # Trim to 5 concepts max for LLM sanity
+    selected_concepts = selected_concepts[:5]
     
     # 2. Generate Collision
-    collision_data = llm.llm_service.generate_collision(pair)
+    collision_data = llm.llm_service.generate_collision(selected_concepts)
     
     # 3. Store result
     new_collision = models.Collision(
@@ -127,6 +171,29 @@ async def generate_collisions(db: Session = Depends(database.get_db)):
 async def list_collisions(skip: int = 0, limit: int = 10, db: Session = Depends(database.get_db)):
     collisions = db.query(models.Collision).order_by(models.Collision.created_at.desc()).offset(skip).limit(limit).all()
     return collisions
+
+@app.get("/collisions/{collision_id}", response_model=schemas.Collision)
+async def get_collision(collision_id: int, db: Session = Depends(database.get_db)):
+    collision = db.query(models.Collision).filter(models.Collision.id == collision_id).first()
+    if not collision:
+        raise HTTPException(status_code=404, detail="Collision not found")
+    return collision
+
+@app.post("/collisions/{collision_id}/explore")
+async def explore_collision(collision_id: int, db: Session = Depends(database.get_db)):
+    """Generates detailed deep-dive for a specific collision dynamically"""
+    from .services import llm
+    collision = db.query(models.Collision).filter(models.Collision.id == collision_id).first()
+    if not collision:
+        raise HTTPException(status_code=404, detail="Collision not found")
+    
+    explanation = llm.llm_service.expand_collision(
+        collision.concept1, 
+        collision.concept2, 
+        collision.insight, 
+        collision.application
+    )
+    return explanation
 
 @app.get("/dashboard/stats")
 async def get_dashboard_stats(db: Session = Depends(database.get_db)):

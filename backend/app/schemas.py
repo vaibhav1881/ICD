@@ -31,3 +31,7 @@ class Collision(CollisionBase):
 
     class Config:
         from_attributes = True
+
+class GenerateCollisionRequest(BaseModel):
+    article_ids: Optional[list[int]] = None
+    concept_names: Optional[list[str]] = None

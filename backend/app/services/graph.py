@@ -59,6 +59,21 @@ class GraphService:
         result = tx.run(query, limit=limit)
         return [record["name"] for record in result]
 
+    def get_concepts_for_articles(self, article_urls: List[str]) -> Dict[str, List[str]]:
+        """Fetches concepts grouped by article url."""
+        with self.driver.session() as session:
+            return session.execute_read(self._get_concepts_for_articles, article_urls)
+
+    @staticmethod
+    def _get_concepts_for_articles(tx, article_urls):
+        query = (
+            "UNWIND $urls AS url "
+            "MATCH (a:Article {url: url})<-[:APPEARS_IN]-(c:Concept) "
+            "RETURN url, collect(c.name) AS concepts"
+        )
+        result = tx.run(query, urls=article_urls)
+        return {record["url"]: record["concepts"] for record in result}
+
     def get_graph_data(self, limit: int = 100) -> Dict[str, List[Any]]:
         """Fetches nodes and relationships for visualization."""
         with self.driver.session() as session:
