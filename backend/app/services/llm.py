@@ -5,7 +5,7 @@ import logging
 # Updated: 2026-02-04 23:14 - Reverted to stable google-generativeai SDK
 from typing import List, Dict, Any
 
-# Load environment variables
+# Load environment variables dhhdhd
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -233,7 +233,7 @@ Be specific and reference actual properties of both concepts."""
             "domain_intersection": f"{domain1} x {domain2}"
         }
     
-    def _infer_domain(self, concept: str) -> str:
+    def _infer_domain(self, concept: str) -> str: 
         """Infer domain from concept name (simple keyword matching)"""
         concept_lower = concept.lower()
         
