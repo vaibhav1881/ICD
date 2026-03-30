@@ -16,8 +16,10 @@ The Idea Collision Generator helps researchers, students, and creative professio
 1. **📚 Capture** web articles via browser extension
 2. **🔍 Extract** key concepts using advanced NLP (spaCy)
 3. **🕸️ Build** a knowledge graph showing concept relationships (Neo4j)
-4. **✨ Generate** AI-powered "idea collisions" - creative connections between unrelated concepts
-5. **📊 Visualize** your knowledge network in interactive 3D
+4. **🎯 Target** specific combinations of articles to fuel highly focused collision pools
+5. **✨ Generate** AI-powered "idea collisions" - creative connections between targeted or random concepts
+6. **📊 Visualize** your knowledge network in interactive 3D
+7. **🔬 Deep Dive** into generated collisions with comprehensive research reports and AI-driven validity metrics (Confidence, Feasibility, Market Potential)
 
 ### Example Collision
 
@@ -26,6 +28,12 @@ The Idea Collision Generator helps researchers, students, and creative professio
 **Insight**: Both systems optimize for efficient resource distribution through probabilistic pathways and self-organizing structures.
 
 **Application**: Design quantum algorithms inspired by fungal growth patterns for distributed computing networks that adapt and self-prune like biological systems.
+
+**Deep Dive Analytics**:
+- **Mechanism**: Explains the technical bridging of biological probabilistic routines into quantum gate architectures
+- **Challenges**: Outlines stability limits and hardware hurdles
+- **Societal Impact**: Details transformation in decentralized computing power
+- **AI Scoring**: *85% Confidence | 70% Feasibility | 90% Market Potential*
 
 **Domain**: Technology × Biology
 
@@ -301,10 +309,13 @@ print(concepts["concepts"])
 - [x] Browser extension for article capture
 - [x] Advanced NLP concept extraction (entities, noun phrases, keywords)
 - [x] Knowledge graph storage and visualization
+- [x] Targeted Idea Generation (multi-select specific articles from library)
+- [x] Comprehensive AI Research Reports (Scientific mechanisms, Implementation challenges)
+- [x] Intelligent Validating Metrics (Confidence, Feasibility, Market Potential scoring)
 - [x] AI-powered collision generation (OpenAI + mock fallback)
 - [x] 3D interactive graph (Three.js)
 - [x] Article management (search, filter, delete)
-- [x] Collision management (generate, view, delete)
+- [x] Collision management (generate, view, delete, deep dive explore)
 - [x] Dark mode UI with glassmorphism
 - [x] Responsive design (desktop + mobile)
 - [x] Docker-based infrastructure
