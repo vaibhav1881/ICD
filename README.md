@@ -90,17 +90,19 @@ The core "intelligence" of the system follows a 7-step hybrid protocol combining
 
 ```mermaid
 flowchart LR
-    raw[Raw Article Text] --> ner[spaCy Entity Extraction]
-    raw --> np[Noun Phrase Extraction]
-    raw --> bert[KeyBERT Context Keywords]
+    raw["Raw Article Text"] --> ner["spaCy Entity Extraction"]
+    raw --> np["Noun Phrase Extraction"]
+    raw --> bert["KeyBERT Context Keywords"]
     
-    ner & np & bert --> fuzzy{Fuzzy Taxonomy Match}
+    ner --> fuzzy{"Fuzzy Taxonomy Match"}
+    np --> fuzzy
+    bert --> fuzzy
     
-    fuzzy -->|Match Found| class[Subdomain Classification]
-    fuzzy -->|No Match| prune[Noise Pruning]
+    fuzzy -->|Match Found| subclass["Subdomain Classification"]
+    fuzzy -->|No Match| prune["Noise Pruning"]
     
-    class --> dedup[Semantic Deduplication]
-    dedup --> graph_push[Push to Neo4j Matrix]
+    subclass --> dedup["Semantic Deduplication"]
+    dedup --> graph_push["Push to Neo4j Matrix"]
 ```
 
 ### 3. Idea Collision Synthesis Logic
