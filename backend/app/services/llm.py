@@ -296,26 +296,14 @@ Format your response as ONLY a valid JSON object matching exactly this structure
         }
 
     def _infer_domain(self, concept: str) -> str:
-        """Infer domain from concept name (simple keyword matching)"""
-        concept_lower = concept.lower()
-        
-        tech_keywords = ['ai', 'algorithm', 'computer', 'software', 'data', 'network', 'digital', 'quantum', 'computing', 'technology', 'intelligence', 'machine', 'learning', 'blockchain', 'cryptography']
-        science_keywords = ['biology', 'physics', 'chemistry', 'science', 'molecular', 'genetic', 'neural', 'brain', 'ecology', 'fungal', 'myco']
-        art_keywords = ['art', 'design', 'music', 'creative', 'aesthetic', 'visual', 'architecture', 'biomimicry']
-        social_keywords = ['social', 'society', 'culture', 'human', 'psychology', 'urban', 'planning', 'city', 'cognitive', 'game', 'theory']
-        business_keywords = ['business', 'market', 'economy', 'finance', 'management', 'strategy', 'circular', 'sustainable']
-        
-        if any(keyword in concept_lower for keyword in tech_keywords):
+        """Infer Technology subdomain from concept name using centralized taxonomy."""
+        try:
+            from .nlp import classify_subdomain
+            subdomains = classify_subdomain(concept)
+            return subdomains[0] if subdomains else "Emerging Technologies"
+        except Exception:
+            # Fallback if import fails
             return "Technology"
-        elif any(keyword in concept_lower for keyword in science_keywords):
-            return "Science"
-        elif any(keyword in concept_lower for keyword in art_keywords):
-            return "Arts & Design"
-        elif any(keyword in concept_lower for keyword in social_keywords):
-            return "Social Sciences"
-        elif any(keyword in concept_lower for keyword in business_keywords):
-            return "Business"
-        else:
-            return "Interdisciplinary"
 
 llm_service = LLMService()
+

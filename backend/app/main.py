@@ -1,6 +1,6 @@
 
 
-# Updated: 2026-02-04 22:47 - Using new NLP with person name filtering
+# Updated: 2026-03-31 — Hybrid NLP + Subdomain classification pipeline
 from dotenv import load_dotenv
 import os
 from pathlib import Path
@@ -56,26 +56,38 @@ async def ingest_article(article: schemas.ArticleCreate, db: Session = Depends(d
     db.commit()
     db.refresh(new_article)
     
-    # 2. Run NLP Extraction (Synchronous for MVP, move to Celery later)
+    # 2. Run Hybrid NLP Extraction (spaCy + KeyBERT + Subdomain classification)
     from .services import nlp, graph
     
     extracted_data = nlp.extract_concepts(article.text)
-    # Use the new 'concepts' field which prioritizes entities and noun phrases
-    concepts = extracted_data.get("concepts", extracted_data["keywords"])[:15]
     
-    # 3. Update Knowledge Graph
+    # Use structured concepts with subdomain info
+    structured_concepts = extracted_data.get("concepts", [])
+    raw_concepts = extracted_data.get("raw_concepts", [])
+    
+    if structured_concepts:
+        print(f"🧠 Extracted {len(structured_concepts)} tech concepts:")
+        for sc in structured_concepts[:5]:
+            print(f"   → {sc['name']} [{sc['subdomain']}]")
+    
+    # 3. Update Knowledge Graph (with subdomain-aware concept storage)
     try:
         graph.graph_service.create_article_node({
             "url": article.url,
             "title": article.title,
             "timestamp": new_article.created_at
         })
-        if concepts:  # Only add if we have concepts
-            graph.graph_service.add_concepts(article.url, concepts)
-            print(f"Added {len(concepts)} concepts to graph: {concepts[:5]}...")
+        if structured_concepts:
+            # Pass structured dicts: [{"name": "...", "subdomain": "..."}, ...]
+            concept_dicts = [{"name": c["name"], "subdomain": c["subdomain"]} for c in structured_concepts]
+            graph.graph_service.add_concepts(article.url, concept_dicts)
+            print(f"✅ Added {len(concept_dicts)} subdomain-classified concepts to graph")
+        elif raw_concepts:
+            # Fallback: plain string list (backward compat)
+            graph.graph_service.add_concepts(article.url, raw_concepts[:15])
+            print(f"Added {len(raw_concepts)} concepts to graph (no subdomain)")
     except Exception as e:
         print(f"Graph update failed: {e}")
-        # Continue even if graph fails, but log it
     
     return new_article
 
@@ -97,69 +109,107 @@ async def get_article_concepts(article_id: int, db: Session = Depends(database.g
 async def generate_collisions(request: schemas.GenerateCollisionRequest = None, db: Session = Depends(database.get_db)):
     """
     Trigger generation of collisions from existing concepts.
-    If request is empty, picks two random concepts.
-    If request has article_ids, picks one random concept per article.
-    If request has concept_names, uses those explicitly.
+    ENHANCED: Prefers cross-subdomain collisions for better interdisciplinary ideas.
     """
     from .services import llm, graph
+    from .services.nlp import classify_subdomain
     import random
     
     selected_concepts = []
-    
+    subdomain1 = None
+    subdomain2 = None
+
     if request and request.concept_names and len(request.concept_names) >= 2:
-        selected_concepts = request.concept_names[:5] # limit to 5 concepts
+        selected_concepts = request.concept_names[:5]
+        # Classify subdomains for the provided concepts
+        subdomain1 = classify_subdomain(selected_concepts[0])[0]
+        subdomain2 = classify_subdomain(selected_concepts[1])[0] if len(selected_concepts) > 1 else None
 
     elif request and request.article_ids:
         # Fetch articles
         articles = db.query(models.Article).filter(models.Article.id.in_(request.article_ids)).all()
         urls = [a.url for a in articles]
         
-        # Get concepts mapped by url
-        concepts_by_url = graph.graph_service.get_concepts_for_articles(urls)
+        # Get concepts WITH subdomain info
+        concept_pool = graph.graph_service.get_concepts_with_subdomains_for_articles(urls)
         
-        # Pick 1 concept from each article
-        for url, url_concepts in concepts_by_url.items():
-            if url_concepts:
-                selected_concepts.append(random.choice(url_concepts))
-        
-        # Ensure unique and at least 2
-        selected_concepts = list(set(selected_concepts))
-        if len(selected_concepts) < 2:
-            # Fill with random concepts from these articles to reach at least 2
-            pool = []
-            for concepts in concepts_by_url.values():
-                pool.extend(concepts)
-            pool = list(set(pool))
-            if len(pool) >= 2:
-                selected_concepts = random.sample(pool, min(len(pool), max(2, len(request.article_ids))))
+        if len(concept_pool) >= 2:
+            # ── Cross-subdomain selection logic ──
+            # Group concepts by subdomain
+            by_subdomain = {}
+            for c in concept_pool:
+                sd = c["subdomain"]
+                by_subdomain.setdefault(sd, []).append(c["name"])
+            
+            subdomain_keys = list(by_subdomain.keys())
+            
+            if len(subdomain_keys) >= 2:
+                # Pick two DIFFERENT subdomains
+                chosen_subdomains = random.sample(subdomain_keys, 2)
+                c1 = random.choice(by_subdomain[chosen_subdomains[0]])
+                c2 = random.choice(by_subdomain[chosen_subdomains[1]])
+                selected_concepts = [c1, c2]
+                subdomain1 = chosen_subdomains[0]
+                subdomain2 = chosen_subdomains[1]
+            else:
+                # Only one subdomain available; pick two random concepts
+                names = [c["name"] for c in concept_pool]
+                selected_concepts = random.sample(names, min(len(names), 2))
+                subdomain1 = subdomain_keys[0]
+                subdomain2 = subdomain_keys[0]
+        else:
+            # Not enough concepts from selected articles
+            concepts_by_url = graph.graph_service.get_concepts_for_articles(urls)
+            for url, url_concepts in concepts_by_url.items():
+                if url_concepts:
+                    selected_concepts.append(random.choice(url_concepts))
+            selected_concepts = list(set(selected_concepts))
     
-    # 1. Fallback to random concepts from Graph if no request or insufficient concepts found
+    # Fallback: use cross-subdomain query from the whole graph
     if len(selected_concepts) < 2:
         try:
-            concepts = graph.graph_service.get_random_concepts(limit=10)
-            if len(concepts) >= 2:
-                selected_concepts = random.sample(concepts, 2)
+            cross_concepts = graph.graph_service.get_cross_subdomain_concepts(limit=2)
+            if len(cross_concepts) >= 2:
+                selected_concepts = [c["name"] for c in cross_concepts]
+                subdomain1 = cross_concepts[0]["subdomain"]
+                subdomain2 = cross_concepts[1]["subdomain"]
+            else:
+                # Final fallback: plain random
+                concepts = graph.graph_service.get_random_concepts(limit=10)
+                if len(concepts) >= 2:
+                    selected_concepts = random.sample(concepts, 2)
         except Exception as e:
             print(f"Error fetching concepts from graph: {e}")
             selected_concepts = []
 
     if len(selected_concepts) < 2:
-        # Final Fallback if graph is empty or error
         selected_concepts = ["Neural Networks", "Urban Planning"]
+        subdomain1 = "Artificial Intelligence"
+        subdomain2 = "Emerging Technologies"
     
     # Trim to 5 concepts max for LLM sanity
     selected_concepts = selected_concepts[:5]
     
-    # 2. Generate Collision
+    # Classify subdomains if not yet determined
+    if not subdomain1:
+        subdomain1 = classify_subdomain(selected_concepts[0])[0]
+    if not subdomain2 and len(selected_concepts) > 1:
+        subdomain2 = classify_subdomain(selected_concepts[1])[0]
+    
+    print(f"🔀 Cross-subdomain collision: [{subdomain1}] {selected_concepts[0]} ⚡ [{subdomain2}] {selected_concepts[1] if len(selected_concepts) > 1 else '?'}")
+    
+    # Generate Collision
     collision_data = llm.llm_service.generate_collision(selected_concepts)
     
-    # 3. Store result
+    # Store result with subdomain info
     new_collision = models.Collision(
         concept1=collision_data["concept_1"],
         concept2=collision_data["concept_2"],
         insight=collision_data["insight"],
         application=collision_data["application"],
-        domain=collision_data["domain_intersection"]
+        domain=collision_data["domain_intersection"],
+        subdomain1=subdomain1,
+        subdomain2=subdomain2,
     )
     db.add(new_collision)
     db.commit()
@@ -199,24 +249,17 @@ async def explore_collision(collision_id: int, db: Session = Depends(database.ge
 async def get_dashboard_stats(db: Session = Depends(database.get_db)):
     article_count = db.query(models.Article).count()
     collision_count = db.query(models.Collision).count()
-    # Mocking concept count for now as it's in Neo4j, or we could query Neo4j here
-    # For MVP speed, we'll just return what we have in Postgres + a mock for graph nodes
     return {
-        "total_concepts": article_count * 5 + 120, # Mock estimation
+        "total_concepts": article_count * 5 + 120,
         "collisions_found": collision_count,
-        "connections": article_count * 8 + 300 # Mock estimation
+        "connections": article_count * 8 + 300
     }
-    
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy"}
 
 @app.get("/health/db")
 async def health_db():
     """Simple health check for PostgreSQL connection"""
     from sqlalchemy import text
     try:
-        # Use the engine defined in database module
         with database.engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         return {"status": "ok"}
@@ -240,18 +283,15 @@ async def delete_article(article_id: int, db: Session = Depends(database.get_db)
     """Delete an article from PostgreSQL and Neo4j"""
     from .services import graph
     
-    # Get article first
     article = db.query(models.Article).filter(models.Article.id == article_id).first()
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
     
-    # Delete from Neo4j graph
     try:
         graph.graph_service.delete_article_node(article.url)
     except Exception as e:
         print(f"Error deleting from Neo4j: {e}")
     
-    # Delete from PostgreSQL
     db.delete(article)
     db.commit()
     

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchRecentArticles, deleteArticle } from "@/lib/api";
-import { BookOpen, Calendar, ExternalLink, Search, Filter, Trash2 } from "lucide-react";
+import { BookOpen, Calendar, ExternalLink, Search, Filter, Trash2, Globe, Clock, ChevronRight } from "lucide-react";
 
 interface Article {
     id: number;
@@ -36,7 +36,6 @@ export default function LibraryPage() {
         setDeleting(articleId);
         try {
             await deleteArticle(articleId);
-            // Remove from local state
             setArticles(articles.filter(a => a.id !== articleId));
         } catch (error) {
             alert("Failed to delete article. Please try again.");
@@ -51,135 +50,110 @@ export default function LibraryPage() {
     );
 
     return (
-        <div className="space-y-6">
-            {/* Page Header */}
-            <div>
-                <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-                    Article Library
-                </h1>
-                <p className="mt-2 text-slate-600 dark:text-slate-400">
-                    Browse and manage all your captured articles
-                </p>
-            </div>
-
-            {/* Search and Filters */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-6 max-w-7xl mx-auto pb-12">
+            {/* Control Bar */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sticky top-[56px] z-20 bg-[#F8FAFC]/80 backdrop-blur-md py-4 dark:bg-slate-950/80">
                 <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                     <input
                         type="text"
-                        placeholder="Search articles..."
+                        placeholder="Search article titles and sources..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                        className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all dark:border-slate-800 dark:bg-slate-900 dark:text-white shadow-sm"
                     />
                 </div>
                 <div className="flex items-center gap-2">
-                    <button className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800">
+                    <div className="hidden sm:flex items-center gap-2 px-4 h-10 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-500 shadow-sm dark:bg-slate-900 dark:border-slate-800">
+                      <BookOpen className="h-4 w-4" />
+                      <span>{articles.length} Resources</span>
+                    </div>
+                    <button className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 h-10 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800">
                         <Filter className="h-4 w-4" />
-                        Filter
+                        Refine
                     </button>
                 </div>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-                    <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Articles</p>
-                    <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">{articles.length}</p>
-                </div>
-                <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-                    <p className="text-sm font-medium text-slate-600 dark:text-slate-400">This Week</p>
-                    <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
-                        {articles.filter(a => {
-                            const weekAgo = new Date();
-                            weekAgo.setDate(weekAgo.getDate() - 7);
-                            return new Date(a.created_at) > weekAgo;
-                        }).length}
-                    </p>
-                </div>
-                <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-                    <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Today</p>
-                    <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
-                        {articles.filter(a => {
-                            const today = new Date().toDateString();
-                            return new Date(a.created_at).toDateString() === today;
-                        }).length}
-                    </p>
-                </div>
-            </div>
-
-            {/* Articles List */}
-            <div className="rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-                <div className="border-b border-slate-200 p-6 dark:border-slate-800">
-                    <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                        All Articles ({filteredArticles.length})
-                    </h2>
-                </div>
-                <div className="divide-y divide-slate-200 dark:divide-slate-800">
-                    {loading ? (
-                        <div className="p-12 text-center">
-                            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
-                            <p className="mt-4 text-sm text-slate-600 dark:text-slate-400">Loading articles...</p>
-                        </div>
-                    ) : filteredArticles.length === 0 ? (
-                        <div className="p-12 text-center">
-                            <BookOpen className="mx-auto h-12 w-12 text-slate-400" />
-                            <p className="mt-4 text-sm text-slate-600 dark:text-slate-400">
-                                {searchTerm ? "No articles found matching your search" : "No articles captured yet"}
-                            </p>
-                        </div>
-                    ) : (
-                        filteredArticles.map((article) => (
+            {/* Content Area */}
+            <div className="space-y-4">
+                {loading ? (
+                    <div className="p-20 text-center flex flex-col items-center gap-4">
+                        <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600"></div>
+                        <p className="text-sm font-medium text-slate-500">Accessing archives...</p>
+                    </div>
+                ) : filteredArticles.length === 0 ? (
+                    <div className="p-20 text-center border-2 border-dashed border-slate-200 rounded-2xl dark:border-slate-800">
+                        <BookOpen className="mx-auto h-12 w-12 text-slate-300 mb-4" />
+                        <p className="text-slate-800 font-bold dark:text-white">Empty Archive</p>
+                        <p className="text-sm text-slate-400 mt-1 max-w-xs mx-auto">
+                            {searchTerm ? "No results found for your search criteria." : "Start capturing research articles via the browser extension to build your library."}
+                        </p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 gap-4">
+                        {filteredArticles.map((article) => (
                             <div
                                 key={article.id}
-                                className="group p-6 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                                className="group bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all dark:bg-slate-900 dark:border-slate-800 relative"
                             >
-                                <div className="flex items-start justify-between gap-4">
-                                    <div className="flex-1 min-w-0">
-                                        <h3 className="text-base font-semibold text-slate-900 dark:text-white line-clamp-2">
+                                <div className="flex items-start justify-between gap-6 mr-10 sm:mr-0">
+                                    <div className="flex-1 min-w-0 pr-10">
+                                        <div className="flex items-center gap-2 mb-1.5 overflow-hidden">
+                                          <Globe className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
+                                          <p className="text-[11px] font-bold text-blue-600/70 dark:text-blue-400/50 uppercase tracking-widest truncate">
+                                              {new URL(article.url).hostname}
+                                          </p>
+                                        </div>
+                                        <h3 className="text-base font-extrabold text-slate-800 dark:text-white leading-snug group-hover:text-blue-600 transition-colors">
                                             {article.title}
                                         </h3>
-                                        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 truncate">
-                                            {article.url}
-                                        </p>
-                                        <div className="mt-2 flex items-center gap-4 text-xs text-slate-500">
-                                            <span className="flex items-center gap-1">
-                                                <Calendar className="h-3 w-3" />
+                                        <div className="mt-3 flex items-center gap-4 text-xs font-semibold">
+                                            <span className="flex items-center gap-1.5 text-slate-400">
+                                                <Calendar className="h-3.5 w-3.5" />
                                                 {new Date(article.created_at).toLocaleDateString('en-US', {
-                                                    month: 'short',
+                                                    month: 'long',
                                                     day: 'numeric',
                                                     year: 'numeric'
                                                 })}
                                             </span>
+                                            <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
+                                            <a 
+                                              href={article.url} 
+                                              target="_blank" 
+                                              className="flex items-center gap-1.5 text-slate-400 hover:text-blue-600 transition-colors"
+                                            >
+                                              External Source <ExternalLink className="h-3 w-3" />
+                                            </a>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <a
-                                            href={article.url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex-shrink-0 rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition-all hover:border-blue-500 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-blue-500 dark:hover:text-blue-400"
-                                        >
-                                            <ExternalLink className="h-4 w-4" />
-                                        </a>
+
+                                    {/* Actions */}
+                                    <div className="flex items-center gap-2 pt-1">
                                         <button
                                             onClick={() => handleDelete(article.id)}
                                             disabled={deleting === article.id}
-                                            className="flex-shrink-0 rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition-all hover:border-red-500 hover:text-red-600 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-red-500 dark:hover:text-red-400"
+                                            className="p-2.5 rounded-xl border border-slate-100 bg-slate-50/50 text-slate-400 hover:border-red-100 hover:text-red-500 hover:bg-red-50/50 transition-all dark:border-slate-800 dark:bg-slate-800/50 dark:hover:bg-red-900/20"
                                         >
                                             {deleting === article.id ? (
-                                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-solid border-red-600 border-r-transparent"></div>
+                                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-red-600 border-r-transparent"></div>
                                             ) : (
                                                 <Trash2 className="h-4 w-4" />
                                             )}
                                         </button>
+                                        <a
+                                            href={article.url}
+                                            target="_blank"
+                                            className="p-2.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/10"
+                                        >
+                                            <ExternalLink className="h-4 w-4" />
+                                        </a>
                                     </div>
                                 </div>
                             </div>
-                        ))
-                    )}
-                </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );

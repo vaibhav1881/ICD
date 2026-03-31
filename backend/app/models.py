@@ -19,5 +19,7 @@ class Collision(Base):
     concept2 = Column(String)
     insight = Column(Text)
     application = Column(Text)
-    domain = Column(String)
+    domain = Column(String)                     # Kept for backward compatibility
+    subdomain1 = Column(String, nullable=True)  # NEW: primary subdomain of concept1
+    subdomain2 = Column(String, nullable=True)  # NEW: primary subdomain of concept2
     created_at = Column(DateTime(timezone=True), server_default=func.now())

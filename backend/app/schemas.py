@@ -24,6 +24,8 @@ class CollisionBase(BaseModel):
     insight: str
     application: str
     domain: str
+    subdomain1: Optional[str] = None  # NEW: primary subdomain of concept1
+    subdomain2: Optional[str] = None  # NEW: primary subdomain of concept2
 
 class Collision(CollisionBase):
     id: int
