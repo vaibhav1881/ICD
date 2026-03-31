@@ -46,6 +46,108 @@ Data is stored in Neo4j with a rich property graph schema:
 
 ---
 
+## 🧬 Architectural Diagrams
+
+### 1. High-Level Core Architecture
+ICD follows a modern distributed architecture, utilizing both relational and graph databases to handle multi-modal data structures.
+
+```mermaid
+graph TD
+    subgraph "External Nodes"
+        ext[Browser Extension]
+    end
+
+    subgraph "Frontend Hub (Next.js)"
+        ui[Research Dashboard]
+        viz[3D Matrix Visualization]
+        report[Synthesis Reports]
+    end
+
+    subgraph "FastAPI Backend"
+        api[API Gateways]
+        nlp[Hybrid NLP Engine]
+        llm[LLM Synthesis Service]
+        graph_svc[Graph Orchestrator]
+    end
+
+    subgraph "Data Persistence"
+        pg[(PostgreSQL: Metadata)]
+        neo[(Neo4j: Knowledge Graph)]
+    end
+
+    ext -->|POST Article| api
+    api --> nlp
+    nlp --> graph_svc
+    graph_svc --> neo
+    api --> pg
+    ui -->|Interactive Query| api
+    api --> viz
+    api --> report
+```
+
+### 2. Hybrid NLP Extraction Pipeline
+The core "intelligence" of the system follows a 7-step hybrid protocol combining rule-based and BERT-driven extraction.
+
+```mermaid
+flowchart LR
+    raw[Raw Article Text] --> ner[spaCy Entity Extraction]
+    raw --> np[Noun Phrase Extraction]
+    raw --> bert[KeyBERT Context Keywords]
+    
+    ner & np & bert --> fuzzy{Fuzzy Taxonomy Match}
+    
+    fuzzy -->|Match Found| class[Subdomain Classification]
+    fuzzy -->|No Match| prune[Noise Pruning]
+    
+    class --> dedup[Semantic Deduplication]
+    dedup --> graph_push[Push to Neo4j Matrix]
+```
+
+### 3. Idea Collision Synthesis Logic
+Our synthesis engine explicitly forces "Domain Fracturing" by selecting disparate technical nodes.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Engine as Collision Engine
+    participant Graph as Neo4j Graph
+    participant LLM as Synthesis AI
+    
+    User->>Engine: Trigger New Collision
+    Engine->>Graph: Query Highly-Connected Concepts
+    Graph-->>Engine: Returns Concept Pool (Filtered by Subdomain)
+    Engine->>Engine: Select Concepts from DIFFERENT Subdomains
+    Engine->>LLM: Send Concepts A + B with Research Context
+    LLM->>LLM: Identify Convergence Mechanisms
+    LLM-->>Engine: Structured Research Synthesis
+    Engine-->>User: Visual Research Report
+```
+
+### 4. Knowledge Graph Schema
+Mapping the interdisciplinary links between source articles and their derived technical concepts.
+
+```mermaid
+erDiagram
+    ARTICLE ||--o{ CONCEPT : "EXTRACTED_FROM"
+    CONCEPT }|--|| SUBDOMAIN : "BELONGS_TO"
+    CONCEPT ||--o| CONCEPT : "SYNTHESIZED_WITH"
+    
+    ARTICLE {
+        int id
+        string title
+        string url
+        datetime created_at
+    }
+    
+    CONCEPT {
+        string name
+        string subdomain
+        float connectivity_weight
+    }
+```
+
+---
+
 ## 🛠️ Technology Stack
 
 ### Backend Logic & AI
