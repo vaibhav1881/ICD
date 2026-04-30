@@ -25,13 +25,13 @@ class LLMService:
         # Determine which API to use
         if self.gemini_api_key and self.gemini_api_key != "your_gemini_api_key_here":
             self.use_gemini = True
-            print("🤖 Using Google Gemini API for collision generation")
+            print("Using Google Gemini API for collision generation")
         elif self.openai_api_key and self.openai_api_key != "your_api_key_here":
             self.use_gemini = False
-            print("🤖 Using OpenAI API for collision generation")
+            print("Using OpenAI API for collision generation")
         else:
             self.use_gemini = None
-            print("⚠️  No API key found, using mock collision generation")
+            print("No API key found, using mock collision generation")
     
     def generate_collision(self, concept_pair: List[str]) -> Dict[str, Any]:
         """
