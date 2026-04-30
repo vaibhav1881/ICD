@@ -41,14 +41,14 @@ const SUBDOMAIN_COLORS: Record<string, string> = {
     "default": "#64748B"
 };
 
-export function ConceptGraph({ 
-    filterSubdomain, 
+export function ConceptGraph({
+    filterSubdomain,
     searchTerm,
-    highlightNodeId 
-}: { 
-    filterSubdomain?: string, 
+    highlightNodeId
+}: {
+    filterSubdomain?: string,
     searchTerm?: string,
-    highlightNodeId?: string 
+    highlightNodeId?: string
 }) {
     const [data, setData] = useState<GraphData>({ nodes: [], links: [] });
     const [loading, setLoading] = useState(true);
@@ -76,8 +76,8 @@ export function ConceptGraph({
                 const enrichedNodes = graphData.nodes.map((node: Node) => ({
                     ...node,
                     val: node.type === "article" ? 15 : 5 + (connectionCounts[node.id] || 0) * 2,
-                    color: node.type === "article" 
-                        ? SUBDOMAIN_COLORS.article 
+                    color: node.type === "article"
+                        ? SUBDOMAIN_COLORS.article
                         : (SUBDOMAIN_COLORS[node.subdomain || ""] || SUBDOMAIN_COLORS.default)
                 }));
 
@@ -128,12 +128,12 @@ export function ConceptGraph({
         if (node) {
             const hNodes = new Set();
             const hLinks = new Set();
-            
+
             hNodes.add(node.id);
             data.links.forEach(link => {
                 const src = typeof link.source === 'string' ? link.source : (link.source as any).id;
                 const tgt = typeof link.target === 'string' ? link.target : (link.target as any).id;
-                
+
                 if (src === node.id) {
                     hNodes.add(tgt);
                     hLinks.add(link);
@@ -142,7 +142,7 @@ export function ConceptGraph({
                     hLinks.add(link);
                 }
             });
-            
+
             setHighlightNodes(hNodes);
             setHighlightLinks(hLinks);
         }
@@ -197,7 +197,7 @@ export function ConceptGraph({
                     sprite.textHeight = node.type === "article" ? 6 : 4;
                     sprite.fontWeight = "bold";
                     sprite.fontFace = "Inter, sans-serif";
-                    
+
                     // Reposition so it's not hidden behind the sphere
                     sprite.position.y = node.val / 2 + 5;
                     return sprite;
@@ -205,14 +205,14 @@ export function ConceptGraph({
                 nodeThreeObjectExtend={true}
                 onNodeHover={handleNodeHover}
                 onNodeClick={(node: any) => {
-                  // Aim at node
-                  const distance = 100;
-                  const distRatio = 1 + distance/Math.hypot(node.x, node.y, node.z);
-                  fgRef.current.cameraPosition(
-                    { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio },
-                    node,
-                    1500
-                  );
+                    // Aim at node
+                    const distance = 100;
+                    const distRatio = 1 + distance / Math.hypot(node.x, node.y, node.z);
+                    fgRef.current.cameraPosition(
+                        { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio },
+                        node,
+                        1500
+                    );
                 }}
                 d3Force="link"
                 d3VelocityDecay={0.3}
@@ -220,19 +220,19 @@ export function ConceptGraph({
 
             {/* Subdomain Legend Overlay */}
             <div className="absolute bottom-6 left-6 p-4 bg-slate-900/40 backdrop-blur-md rounded-2xl border border-white/5 pointer-events-none transition-all hidden md:block">
-              <p className="text-[10px] font-black tracking-widest text-white/40 mb-3 uppercase">Domain Classification</p>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-                {Object.entries(SUBDOMAIN_COLORS).filter(([k]) => k !== "article" && k !== "default").map(([label, color]) => (
-                  <div key={label} className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full shadow-lg shadow-white/10" style={{ background: color }}></div>
-                    <span className="text-[11px] font-bold text-white/70 whitespace-nowrap">{label}</span>
-                  </div>
-                ))}
-                <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full border border-white/20" style={{ background: "#94A3B8" }}></div>
-                    <span className="text-[11px] font-bold text-white/70">Article Source</span>
+                <p className="text-[10px] font-black tracking-widest text-white/40 mb-3 uppercase">Domain Classification</p>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                    {Object.entries(SUBDOMAIN_COLORS).filter(([k]) => k !== "article" && k !== "default").map(([label, color]) => (
+                        <div key={label} className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full shadow-lg shadow-white/10" style={{ background: color }}></div>
+                            <span className="text-[11px] font-bold text-white/70 whitespace-nowrap">{label}</span>
+                        </div>
+                    ))}
+                    <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full border border-white/20" style={{ background: "#94A3B8" }}></div>
+                        <span className="text-[11px] font-bold text-white/70">Article Source</span>
+                    </div>
                 </div>
-              </div>
             </div>
         </div>
     );
