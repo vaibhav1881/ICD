@@ -186,5 +186,21 @@ class GraphService:
         )
         tx.run(query, article_url=article_url)
 
+    def get_shortest_path_distance(self, concept1_name: str, concept2_name: str) -> int:
+        """Calculates the shortest path (in hops) between two concepts in the graph."""
+        with self.driver.session() as session:
+            return session.execute_read(self._get_shortest_path, concept1_name, concept2_name)
+
+    @staticmethod
+    def _get_shortest_path(tx, c1, c2):
+        query = (
+            "MATCH (c1:Concept {name: $c1}), (c2:Concept {name: $c2}) "
+            "MATCH p = shortestPath((c1)-[*..10]-(c2)) "
+            "RETURN length(p) AS distance"
+        )
+        result = tx.run(query, c1=c1, c2=c2)
+        record = result.single()
+        return record["distance"] if record else 99  # 99 represents no connection within depth 10
+
 # Singleton instance
 graph_service = GraphService()

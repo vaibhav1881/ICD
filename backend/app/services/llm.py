@@ -41,7 +41,7 @@ class LLMService:
         if not concept_pair or len(concept_pair) < 2:
             raise ValueError("Need at least 2 concepts to generate a collision")
         
-        print(f"🔄 Generating collision for: {concept_pair}")
+        print(f" Generating collision for: {concept_pair}")
         
         # Try Gemini first if available
         if self.use_gemini:
@@ -53,7 +53,7 @@ class LLMService:
         
         # Fall back to mock
         else:
-            print("⚠️  No API key found, using mock collision")
+            print("  No API key found, using mock collision")
             return self._generate_mock_collision(concept_pair[0], concept_pair[1])
     
     def _generate_with_gemini(self, concepts: List[str]) -> Dict[str, Any]:
@@ -86,7 +86,7 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no code 
 
 Be specific and reference actual properties of the concepts."""
             
-            print(f"📡 Calling Gemini API ({model_name})...")
+            print(f" Calling Gemini API ({model_name})...")
             
             # Retry logic for Rate Limits (429) and Server Errors
             max_retries = 3
@@ -99,7 +99,7 @@ Be specific and reference actual properties of the concepts."""
                 except exceptions.ResourceExhausted as e:
                     # Handle 429 Rate Limit
                     wait_time = 5 * (attempt + 1)
-                    print(f"⏳ Rate limit hit. Retrying in {wait_time}s...")
+                    print(f" Rate limit hit. Retrying in {wait_time}s...")
                     time.sleep(wait_time)
                     if attempt == max_retries - 1:
                         raise e 
@@ -107,13 +107,13 @@ Be specific and reference actual properties of the concepts."""
                     # If model not found or other client error, try fallback immediately
                     error_str = str(e).lower()
                     if "404" in error_str or "not found" in error_str:
-                        print(f"⚠️  {model_name} not found, trying gemini-pro-latest...")
+                        print(f"  {model_name} not found, trying gemini-pro-latest...")
                         try:
                             model = genai.GenerativeModel('gemini-pro-latest')
                             response = model.generate_content(prompt)
                             break
                         except Exception as fallback_error:
-                             print(f"❌ Fallback also failed: {fallback_error}")
+                             print(f" Fallback also failed: {fallback_error}")
                              raise e
                     raise e
 
@@ -131,7 +131,7 @@ Be specific and reference actual properties of the concepts."""
                 response_text = response_text.strip()
             
             content = json.loads(response_text)
-            print(f"✅ Gemini collision generated successfully")
+            print(f" Gemini collision generated successfully")
             
             return {
                 "concept_1": concepts[0],
@@ -143,10 +143,10 @@ Be specific and reference actual properties of the concepts."""
             
         except Exception as e:
             error_msg = str(e)
-            print(f"❌ Gemini API Error: {error_msg}")
+            print(f" Gemini API Error: {error_msg}")
             
             # Fall back to mock collision if everything fails
-            print(f"🔄 Falling back to mock collision")
+            print(f" Falling back to mock collision")
             return self._generate_mock_collision(concepts[0], concepts[1])
 
     def _generate_with_openai(self, concepts: List[str]) -> Dict[str, Any]:
@@ -172,7 +172,7 @@ Return ONLY a valid JSON object with this exact structure:
 
 Be specific and reference actual properties of the concepts."""
             
-            print(f"📡 Calling OpenAI API...")
+            print(f" Calling OpenAI API...")
             response = client.chat.completions.create(
                 model="gpt-4o",
                 messages=[{"role": "user", "content": prompt}],
@@ -182,7 +182,7 @@ Be specific and reference actual properties of the concepts."""
             )
             
             content = json.loads(response.choices[0].message.content)
-            print(f"✅ OpenAI collision generated successfully")
+            print(f" OpenAI collision generated successfully")
             
             return {
                 "concept_1": concepts[0],
@@ -194,10 +194,10 @@ Be specific and reference actual properties of the concepts."""
             
         except Exception as e:
             error_msg = str(e)
-            print(f"❌ OpenAI API Error: {error_msg}")
+            print(f" OpenAI API Error: {error_msg}")
             
             # Fall back to mock collision
-            print(f"🔄 Falling back to mock collision")
+            print(f" Falling back to mock collision")
             return self._generate_mock_collision(concepts[0], concepts[1])
     
     def _generate_mock_collision(self, concept1: str, concept2: str) -> Dict[str, Any]:
@@ -282,7 +282,7 @@ Format your response as ONLY a valid JSON object matching exactly this structure
                 text = response.choices[0].message.content.strip()
                 return json.loads(text)
         except Exception as e:
-            print(f"❌ Error expanding collision: {e}")
+            print(f" Error expanding collision: {e}")
         
         return {
             "executive_summary": "An error occurred while generating the research report.",
