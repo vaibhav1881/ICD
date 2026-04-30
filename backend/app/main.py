@@ -229,21 +229,44 @@ async def get_collision(collision_id: int, db: Session = Depends(database.get_db
         raise HTTPException(status_code=404, detail="Collision not found")
     return collision
 
-@app.post("/collisions/{collision_id}/explore")
+@app.post("/collisions/{collision_id}/explore", response_model=schemas.CollisionReport)
 async def explore_collision(collision_id: int, db: Session = Depends(database.get_db)):
-    """Generates detailed deep-dive for a specific collision dynamically"""
+    """Generates detailed deep-dive for a specific collision dynamically, or retrieves it if it already exists"""
     from .services import llm
     collision = db.query(models.Collision).filter(models.Collision.id == collision_id).first()
     if not collision:
         raise HTTPException(status_code=404, detail="Collision not found")
     
+    # Check if a report already exists
+    existing_report = db.query(models.CollisionReport).filter(models.CollisionReport.collision_id == collision_id).first()
+    if existing_report:
+        return existing_report
+
+    # Generate a new report
     explanation = llm.llm_service.expand_collision(
         collision.concept1, 
         collision.concept2, 
         collision.insight, 
         collision.application
     )
-    return explanation
+
+    # Save it to the database
+    new_report = models.CollisionReport(
+        collision_id=collision_id,
+        executive_summary=explanation.get("executive_summary", ""),
+        scientific_mechanism=explanation.get("scientific_mechanism", ""),
+        market_validity=explanation.get("market_validity", ""),
+        implementation_challenges=explanation.get("implementation_challenges", ""),
+        societal_impact=explanation.get("societal_impact", ""),
+        confidence_score=explanation.get("confidence_score", 0),
+        feasibility_score=explanation.get("feasibility_score", 0),
+        market_potential_score=explanation.get("market_potential_score", 0)
+    )
+    db.add(new_report)
+    db.commit()
+    db.refresh(new_report)
+
+    return new_report
 
 @app.get("/dashboard/stats")
 async def get_dashboard_stats(db: Session = Depends(database.get_db)):
