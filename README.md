@@ -82,6 +82,8 @@ graph TD
     api --> pg
     ui -->|Interactive Query| api
     api --> viz
+    api -->|Selected Concepts| llm
+    llm -->|Generated Insights| api
     api --> report
 ```
 
